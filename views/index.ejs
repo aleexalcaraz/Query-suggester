@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ProyectoFinal</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"></link>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/easy-autocomplete.min.css"></link>
+        <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <link rel="stylesheet" href="/resources/demos/style.css">
+        <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/jquery.easy-autocomplete.js"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+        
+        <!--<script src="/jquery.easy-autocomplete.min.js"></script> 
+        <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>-->
+    </head>
+    <body>
+        
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="margin-bottom: 30px">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">ProyectoFinal</a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+            <ul class="nav navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Bases</a>
+                </li>
+            </ul>
+          </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <header class="jumbotron">
+            <div clas="container">
+                <h1>Introduzca el query porfavor</h1>
+                <p>De click en el boton buscar y aparecera el resultado de su query</p>
+                <form class="form-inline" action="/queries" method="POST">
+                  <div class="form-group">
+                    <input type="text" class="form-control form-control-lg" name="query" id="query" placeholder="query" style="margin-right: 50px; width: 700px; font-size: 15px;">
+                  </div>
+                  <div class="form-group">
+                    <button class="btn btn-primary btn-lg " style="margin-left:20px">Submit</button>
+                  </div>
+                </form>    
+            </div>
+            
+            <h4 style="margin-top:20px;">Resultados Query</h4>
+            <table class="table">
+              <% for (var p in queryResult) { %>
+                <% for (var k in queryResult[p]) {%>
+                  <tr>
+                    <td><%=  k+": " %></td>
+                    <td><%= queryResult[p][k] %></td>
+                  </tr>
+                <% } %>
+              <% }; %>
+            </table>
+        </header>
+    </div>
+    
+
+    
+  
+    <script>
+        var a = ["SELECT"];
+        var b = [];
+        var names = []
+        var finalTables = [];
+        var whereColumns = [];
+        var cont = 0;
+        var queries = <%- JSON.stringify(queries) %>;
+    
+        console.log(queries);
+        
+        for(var i=0;i<queries.length;i++){
+          b.push(queries[i].COLUMN_NAME);
+        }
+        for(var i=0;i<queries.length;i++){
+          names.push(queries[i].TABLE_NAME);
+        }
+        
+        var c = [];
+        $.each(names, function(i, el){
+            if($.inArray(el, c) === -1) c.push(el);
+        });
+        
+        $( function() {
+        var availableTags = a;
+        function split( val ) {
+      return val.split( / \s*/ );
+    }
+    function extractLast( term ) {
+      return split( term ).pop();
+    }
+    var cont = 0;
+    var flag = 0;
+    var str = " ";
+    $( "#query" )
+      // don't navigate away from the field on tab when selecting an item
+      .on( "keydown", function( event ) {
+        console.log($('#query').val());
+        if($('#query').val().includes("FROM") && flag == 0){
+          if($('#query').val().includes("*")){
+            finalTables = []; 
+            flag = 1;
+            for(var i = 0; i<queries.length;i++){
+              if(finalTables.includes(queries[i].TABLE_NAME)== false){
+                finalTables.push(queries[i].TABLE_NAME);
+                str += queries[i].TABLE_NAME+ " ,";
+              }
+              
+              
+            }
+            availableTags = finalTables;
+          }
+          else{
+              flag = 1;
+              finalTables = [];
+              for(var i = 0; i<queries.length;i++){
+                if($('#query').val().includes(queries[i].COLUMN_NAME)){
+                  
+                  if(i == queries.length ){
+                    str += queries[i].TABLE_NAME+ " ";
+                  }
+                  else{
+                    str += queries[i].TABLE_NAME+ " ,";
+                  }
+                  finalTables.push(queries[i].TABLE_NAME);
+                  
+                  //availableTags = finalTables;
+                }
+              }
+              str = str.slice(0, -1);
+              $('#query').val($('#query').val() + str );
+          }
+        }
+        if($('#query').val().includes("WHERE")){
+          for(var i = 0; i<finalTables.length;i++){
+            for(var j = 0; j< queries.length;j++){
+              if(finalTables[i] === queries[j].TABLE_NAME){
+                whereColumns.push(queries[j].COLUMN_NAME);
+              }
+            }
+            
+          }
+          
+          var aux = [];
+          $.each(whereColumns, function(i, el){
+              if($.inArray(el, aux) === -1) aux.push(el);
+          });
+          
+          availableTags = aux;
+          
+        }
+        
+        if ( ( event.keyCode === $.ui.keyCode.TAB  && $( this ).autocomplete( "instance" ).menu.active ) ){
+          event.preventDefault();
+        }
+      })
+      .autocomplete({
+        minLength: 0,
+        source: function( request, response ) {
+          // delegate back to autocomplete, but extract the last term
+          response( $.ui.autocomplete.filter(
+            availableTags, extractLast( request.term ) ) );
+        },
+        focus: function() {
+          // prevent value inserted on focus
+          return false;
+        },
+        select: function( event, ui ) {
+          var terms = split( this.value );
+          // remove the current input
+          terms.pop();
+          // add the selected item
+          terms.push( ui.item.value );
+          // add placeholder to get the comma-and-space at the end
+          terms.push( "" );
+          /*var f =  String.fromCharCode(event.keyCode);
+          if(f.includes(".");){
+              
+          }*/
+          cont = cont + 1;
+          if (cont == 1){
+              availableTags = b;
+          }
+          
+          
+          this.value = terms.join( " " );
+          return false;
+        }
+      });
+  } );
+  
+  
+    </script>
+     </body>
+</html>
+        
